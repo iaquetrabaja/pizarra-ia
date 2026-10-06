@@ -1,0 +1,31 @@
+{
+  "titulo": "Cómo funciona la IA explicado fácil",
+  "idioma": "es",
+  "escenas": [
+    {
+      "narracion": "¿Crees que la inteligencia artificial piensa como tú? En realidad, no tiene ni una sola idea propia.",
+      "visual": "Un muñeco de palo con una bombilla encendida frente a la silueta de un robot con una interrogación en el pecho.",
+      "etiqueta": "CERO IDEAS"
+    },
+    {
+      "narracion": "Funciona más bien como un imitador superdotado. Le enseñas millones de fotos de gatos y busca qué tienen en común.",
+      "visual": "Una pila enorme de fotos diminutas entrando por un embudo hacia una caja central.",
+      "etiqueta": "PATRONES"
+    },
+    {
+      "narracion": "No sabe qué es un animal. Solo calcula qué píxeles suelen ir juntos usando pura probabilidad matemática.",
+      "visual": "Un dibujo simple de un bigote de gato rodeado por números y un símbolo de porcentaje grande.",
+      "etiqueta": "PROBABILIDAD"
+    },
+    {
+      "narracion": "Cuando le haces una pregunta, predice cuál es la siguiente palabra más lógica según todo lo que leyó antes.",
+      "visual": "Tres casillas en fila: dos con palabras escritas y la tercera vacía con una flecha apuntando a completarla.",
+      "etiqueta": "PREDICCIÓN"
+    },
+    {
+      "narracion": "No hay mentes mágicas ni magia detrás: la inteligencia artificial es solo una calculadora gigante buscando patrones.",
+      "visual": "Una calculadora clásica dibujada con trazos gruesos que tiene dos ojos curiosos en la pantalla.",
+      "etiqueta": "CALCULADORA GIGANTE"
+    }
+  ]
+}

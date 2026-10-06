@@ -1,0 +1,55 @@
+1
+00:00:00,250 --> 00:00:03,280
+¿Crees que la inteligencia artificial piensa como tú?
+
+2
+00:00:03,280 --> 00:00:06,350
+En realidad, no tiene ni una sola idea propia.
+
+3
+00:00:07,050 --> 00:00:10,180
+Funciona más bien como un imitador superdotado.
+
+4
+00:00:10,180 --> 00:00:12,193
+Le enseñas millones de fotos de
+
+5
+00:00:12,193 --> 00:00:14,390
+gatos y busca qué tienen en común.
+
+6
+00:00:15,090 --> 00:00:16,920
+No sabe qué es un animal.
+
+7
+00:00:16,920 --> 00:00:19,558
+Solo calcula qué píxeles suelen ir juntos
+
+8
+00:00:19,558 --> 00:00:21,890
+usando pura probabilidad matemática.
+
+9
+00:00:22,590 --> 00:00:24,483
+Cuando le haces una pregunta,
+
+10
+00:00:24,483 --> 00:00:26,538
+predice cuál es la siguiente palabra
+
+11
+00:00:26,538 --> 00:00:28,810
+más lógica según todo lo que leyó antes.
+
+12
+00:00:29,510 --> 00:00:32,310
+No hay mentes mágicas ni magia detrás:
+
+13
+00:00:32,310 --> 00:00:34,770
+la inteligencia artificial es solo una
+
+14
+00:00:34,770 --> 00:00:37,230
+calculadora gigante buscando patrones.

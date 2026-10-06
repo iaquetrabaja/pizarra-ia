@@ -1,0 +1,197 @@
+"""Narración: Gemini TTS (con la clave del usuario) o Piper (local, gratis).
+
+Cada escena devuelve audio int16 mono y los tramos temporales de cada frase,
+que luego se usan para cronometrar los subtítulos:
+  * Piper: se sintetiza frase a frase -> tiempos exactos.
+  * Gemini: una llamada por escena -> tiempos estimados por longitud de texto
+    y "pegados" a los silencios reales del audio (alineación barata).
+"""
+from __future__ import annotations
+
+import logging
+import threading
+import wave
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+
+from .config import CACHE_DIR, PIPER_VOICES
+from .subtitles import split_sentences
+
+log = logging.getLogger("pizarra")
+
+LEAD_IN = 0.25    # silencio al principio de cada escena (la mano empieza antes)
+TAIL = 0.45       # silencio al final de cada escena
+SENT_GAP = 0.22   # pausa entre frases (Piper)
+
+
+@dataclass
+class Speech:
+    samples: np.ndarray            # int16 mono
+    sr: int
+    spans: list[tuple[str, float, float]]   # (frase, inicio, fin) en segundos
+    engine: str
+
+    @property
+    def duration(self) -> float:
+        return len(self.samples) / self.sr
+
+
+def silence(sec: float, sr: int) -> np.ndarray:
+    return np.zeros(int(round(sec * sr)), np.int16)
+
+
+def write_wav(path: Path, samples: np.ndarray, sr: int) -> None:
+    with wave.open(str(path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sr)
+        wf.writeframes(np.ascontiguousarray(samples, dtype=np.int16).tobytes())
+
+
+# --------------------------------------------------------------------------
+# Piper
+# --------------------------------------------------------------------------
+_piper_lock = threading.Lock()
+_piper_cache: dict[str, object] = {}
+
+
+def piper_voice_name(idioma: str) -> str:
+    return PIPER_VOICES.get(idioma) or PIPER_VOICES.get(idioma.split("-")[0], PIPER_VOICES["es"])
+
+
+def load_piper(voice: str):
+    with _piper_lock:
+        if voice in _piper_cache:
+            return _piper_cache[voice]
+        try:
+            from piper import PiperVoice
+            from piper.download_voices import download_voice
+        except ImportError as e:  # pragma: no cover
+            raise RuntimeError("Piper no está instalado: pip install piper-tts") from e
+        d = CACHE_DIR / "piper"
+        d.mkdir(parents=True, exist_ok=True)
+        model = d / f"{voice}.onnx"
+        if not model.exists() or not (d / f"{voice}.onnx.json").exists():
+            log.info("Descargando voz Piper %s (sólo la primera vez, ~60 MB)...", voice)
+            download_voice(voice, d)
+        v = PiperVoice.load(str(model))
+        _piper_cache[voice] = v
+        return v
+
+
+def unload_piper() -> None:
+    """Libera el modelo Piper (~200 MB) cuando ya no hace falta."""
+    with _piper_lock:
+        _piper_cache.clear()
+    import gc
+    gc.collect()
+
+
+def synth_piper(text: str, idioma: str = "es", velocidad: float = 1.0) -> Speech:
+    voice = load_piper(piper_voice_name(idioma))
+    from piper import SynthesisConfig
+    cfg = SynthesisConfig(length_scale=1.0 / max(0.5, min(2.0, velocidad or 1.0)))
+    sr = voice.config.sample_rate
+    parts = [silence(LEAD_IN, sr)]
+    spans = []
+    t = LEAD_IN
+    sents = split_sentences(text)
+    for i, s in enumerate(sents):
+        with _piper_lock:
+            chunks = list(voice.synthesize(s, syn_config=cfg))
+        audio = np.concatenate([c.audio_int16_array for c in chunks]) if chunks else np.zeros(0, np.int16)
+        audio = trim_silence(audio, sr, keep=0.03)
+        d = len(audio) / sr
+        spans.append((s, t, t + d))
+        parts.append(audio)
+        t += d
+        if i < len(sents) - 1:
+            gap = SENT_GAP + (0.1 if s.endswith(("?", "!", ".")) else 0)
+            parts.append(silence(gap, sr))
+            t += gap
+    parts.append(silence(TAIL, sr))
+    return Speech(np.concatenate(parts), sr, spans, "piper")
+
+
+# --------------------------------------------------------------------------
+# Utilidades de audio
+# --------------------------------------------------------------------------
+def _rms_frames(samples: np.ndarray, sr: int, win: float = 0.02) -> tuple[np.ndarray, int]:
+    n = max(1, int(sr * win))
+    m = len(samples) // n
+    if m == 0:
+        return np.zeros(0), n
+    x = samples[: m * n].astype(np.float32).reshape(m, n)
+    return np.sqrt((x * x).mean(1)), n
+
+
+def trim_silence(samples: np.ndarray, sr: int, keep: float = 0.08) -> np.ndarray:
+    rms, n = _rms_frames(samples, sr)
+    if len(rms) == 0:
+        return samples
+    thr = max(80.0, 0.04 * float(np.percentile(rms, 95)))
+    voiced = np.nonzero(rms > thr)[0]
+    if len(voiced) == 0:
+        return samples
+    k = int(keep * sr)
+    a = max(0, voiced[0] * n - k)
+    b = min(len(samples), (voiced[-1] + 1) * n + k)
+    return samples[a:b]
+
+
+def find_pauses(samples: np.ndarray, sr: int, min_len: float = 0.12) -> list[float]:
+    """Centros (s) de los silencios internos de al menos min_len segundos."""
+    rms, n = _rms_frames(samples, sr)
+    if len(rms) == 0:
+        return []
+    thr = max(80.0, 0.06 * float(np.percentile(rms, 95)))
+    quiet = rms < thr
+    out, i, win = [], 0, n / sr
+    while i < len(quiet):
+        if quiet[i]:
+            j = i
+            while j < len(quiet) and quiet[j]:
+                j += 1
+            if (j - i) * win >= min_len and i > 0 and j < len(quiet):
+                out.append((i + j) / 2 * win)
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def estimate_spans(sents: list[str], samples: np.ndarray, sr: int, t0: float) -> list[tuple[str, float, float]]:
+    """Tramos por frase: proporcionales al nº de caracteres y ajustados a pausas reales."""
+    dur = len(samples) / sr
+    if not sents:
+        return []
+    w = np.array([len(s) + 3 for s in sents], np.float64)
+    bounds = list(np.cumsum(w)[:-1] / w.sum() * dur)
+    pauses = find_pauses(samples, sr)
+    used = set()
+    snapped = []
+    prev = 0.0
+    for b in bounds:
+        best, bd = None, 0.9
+        for k, p in enumerate(pauses):
+            if k in used or p <= prev + 0.2:
+                continue
+            if abs(p - b) < bd:
+                best, bd = k, abs(p - b)
+        if best is not None:
+            used.add(best)
+            b = pauses[best]
+        b = max(b, prev + 0.2)
+        snapped.append(b)
+        prev = b
+    edges = [0.0] + snapped + [dur]
+    return [(s, t0 + edges[i], t0 + edges[i + 1]) for i, s in enumerate(sents)]
+
+
+def speech_from_pcm(text: str, pcm: np.ndarray, sr: int, engine: str) -> Speech:
+    audio = trim_silence(pcm, sr)
+    spans = estimate_spans(split_sentences(text), audio, sr, LEAD_IN)
+    full = np.concatenate([silence(LEAD_IN, sr), audio, silence(TAIL, sr)])
+    return Speech(full, sr, spans, engine)

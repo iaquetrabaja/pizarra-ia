@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pizarra IA</title>
+<meta name="description" content="Crea vídeos de animación de pizarra con tu propia clave de Gemini. Gratis y de código abierto.">
+<link rel="stylesheet" href="static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="./">Pizarra IA</a>
+    <span class="by">por <a href="https://iaquetrabaja.com" target="_blank" rel="noopener">IA Que Trabaja</a></span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>Vídeos de pizarra dibujados a mano, con tu clave de Gemini.</h1>
+    <p>Escribe un tema. La IA hace el guion, tú lo revisas, y Pizarra IA dibuja cada escena trazo a trazo con voz y subtítulos.</p>
+    <p class="muted">¿Sin clave? <button class="link" id="btn-demo" type="button">Crea el vídeo de demostración</button> (20 s, sin IA en la nube).</p>
+  </section>
+
+  <!-- 1. Clave -->
+  <section class="step" id="paso-clave">
+    <h2><span class="n">1</span>Tu clave de Gemini</h2>
+    <div class="row">
+      <input id="clave" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" aria-label="Clave de Gemini">
+      <button id="btn-clave" type="button" class="secondary">Comprobar</button>
+    </div>
+    <label class="check"><input type="checkbox" id="recordar"> Recordar en este navegador</label>
+    <p class="hint">Consíguela gratis en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> (botón «Create API key»). Tu clave no se guarda en el servidor: sólo se usa mientras se crea tu vídeo. Si marcas «recordar», se guarda únicamente en este navegador.</p>
+    <p class="status" id="clave-estado" role="status"></p>
+  </section>
+
+  <!-- 2. Tema -->
+  <section class="step" id="paso-tema">
+    <h2><span class="n">2</span>Tema y formato</h2>
+    <label class="field">Tema del vídeo
+      <textarea id="tema" rows="2" maxlength="500" placeholder="Ej.: Cómo funciona la inteligencia artificial, explicado fácil"></textarea>
+    </label>
+    <div class="grid">
+      <label class="field">Duración
+        <select id="duracion">
+          <option value="30">30 s</option><option value="45">45 s</option>
+          <option value="60" selected>60 s</option><option value="90">90 s</option><option value="120">120 s</option>
+        </select>
+      </label>
+      <label class="field">Idioma <select id="idioma"></select></label>
+      <label class="field">Voz <select id="voz"></select></label>
+    </div>
+
+    <div class="field">Formato
+      <div class="seg" role="radiogroup" id="formato">
+        <label><input type="radio" name="formato" value="9:16" checked><span>Vertical 9:16</span></label>
+        <label><input type="radio" name="formato" value="16:9"><span>Horizontal 16:9</span></label>
+      </div>
+    </div>
+
+    <div class="field">Estilo
+      <div class="styles" role="radiogroup">
+        <label class="style"><input type="radio" name="estilo" value="pizarra" checked><span class="sw sw-pizarra"></span><span>Pizarra blanca</span></label>
+        <label class="style"><input type="radio" name="estilo" value="tiza"><span class="sw sw-tiza"></span><span>Pizarra de tiza</span></label>
+        <label class="style"><input type="radio" name="estilo" value="cuaderno"><span class="sw sw-cuaderno"></span><span>Cuaderno</span></label>
+      </div>
+    </div>
+
+    <label class="check"><input type="checkbox" id="investigar"> Investigar en la web antes de escribir (Google Search)</label>
+
+    <details class="adv">
+      <summary>Opciones avanzadas</summary>
+      <div class="grid">
+        <label class="field">Modelo de texto <select id="m-texto"><option value="">Automático</option></select></label>
+        <label class="field">Modelo de imagen <select id="m-imagen"><option value="">Automático</option></select></label>
+        <label class="field">Modelo de voz <select id="m-tts"><option value="">Automático</option></select></label>
+        <label class="field">Dibujos
+          <select id="imagenes">
+            <option value="auto">Automático</option>
+            <option value="ia">Modelo de imagen</option>
+            <option value="vector">Vectorial (gratis, más simple)</option>
+          </select>
+        </label>
+        <label class="field">Voz
+          <select id="tts">
+            <option value="auto">Automático (Gemini; si falla, local)</option>
+            <option value="gemini">Gemini</option>
+            <option value="piper">Local (Piper)</option>
+          </select>
+        </label>
+      </div>
+      <label class="check"><input type="checkbox" id="color" checked> Colorear al terminar cada dibujo</label>
+      <label class="check"><input type="checkbox" id="subtitulos" checked> Subtítulos en el vídeo</label>
+    </details>
+
+    <div class="actions">
+      <button id="btn-guion" type="button" class="primary">Escribir guion</button>
+      <span class="status" id="guion-estado" role="status"></span>
+    </div>
+  </section>
+
+  <!-- 3. Guion -->
+  <section class="step hidden" id="paso-guion">
+    <h2><span class="n">3</span>Revisa el guion</h2>
+    <p class="hint">Cambia lo que quieras: lo que se dice, lo que se dibuja y el texto corto que aparece en el dibujo.</p>
+    <label class="field">Título <input id="titulo" type="text" maxlength="120"></label>
+    <ol id="escenas" class="scenes"></ol>
+    <div class="actions">
+      <button id="btn-add" type="button" class="secondary">Añadir escena</button>
+      <span class="muted" id="estimacion"></span>
+    </div>
+    <div class="actions">
+      <button id="btn-render" type="button" class="primary">Crear vídeo</button>
+      <span class="status" id="render-estado" role="status"></span>
+    </div>
+  </section>
+
+  <!-- 4. Vídeo -->
+  <section class="step hidden" id="paso-video">
+    <h2><span class="n">4</span>Tu vídeo</h2>
+    <p id="job-msg" class="job-msg" role="status">En cola…</p>
+    <div class="bar"><div class="bar-in" id="bar"></div></div>
+    <p class="muted" id="job-sub"></p>
+    <button id="btn-cancel" type="button" class="link">Cancelar</button>
+    <div id="resultado" class="hidden">
+      <video id="player" controls playsinline preload="metadata"></video>
+      <div class="actions">
+        <a class="button primary" id="dl-mp4" download>Descargar MP4</a>
+        <a class="button secondary" id="dl-srt" download>Descargar SRT</a>
+        <a class="button secondary" id="dl-json" download>Guion (JSON)</a>
+      </div>
+      <p class="muted">Los archivos se borran automáticamente a las 24 horas.</p>
+      <ul id="avisos" class="warn"></ul>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>Pizarra IA es software libre (GPL-3.0). Inspirado en <a href="https://github.com/yogendra-yatnalkar/storyboard-ai" target="_blank" rel="noopener">storyboard-ai</a>. Usa tu propia clave: los costes y cuotas de Gemini son los de tu cuenta.</p>
+  <p class="muted" id="cupo"></p>
+</footer>
+
+<template id="tpl-escena">
+  <li class="scene">
+    <div class="scene-head">
+      <strong class="scene-n"></strong>
+      <span class="scene-tools">
+        <button type="button" class="link" data-act="up">Subir</button>
+        <button type="button" class="link" data-act="down">Bajar</button>
+        <button type="button" class="link danger" data-act="del">Quitar</button>
+      </span>
+    </div>
+    <label class="field">Narración <textarea rows="3" data-k="narracion" maxlength="900"></textarea></label>
+    <label class="field">Qué se dibuja <textarea rows="2" data-k="visual" maxlength="600"></textarea></label>
+    <label class="field">Texto en el dibujo (opcional, máx. 3 palabras) <input type="text" data-k="etiqueta" maxlength="32"></label>
+  </li>
+</template>
+
+<script src="static/app.js"></script>
+</body>
+</html>

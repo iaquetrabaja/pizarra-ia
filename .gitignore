@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+*.env
+# salidas locales
+salida/
+datos/
+*.wav
+# claves: nunca al repo
+*clave*.txt
+*key*.txt
