@@ -82,6 +82,21 @@ def load_model(name: str = MODEL_NAME, log: Log = print):
         return _model
 
 
+def release() -> None:
+    """Libera el modelo (se llama al terminar los subtítulos, antes del render, que es lo que más
+    memoria usa). El proceso de render de la web hace un vídeo por proceso: se carga una sola vez."""
+    global _model
+    with _model_lock:
+        _model = None
+    import gc
+    gc.collect()
+    try:  # devuelve al sistema la memoria liberada (glibc)
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _resample(a: np.ndarray, sr_in: int, sr_out: int) -> np.ndarray:
     if sr_in == sr_out or len(a) == 0:
         return a.astype(np.float32)

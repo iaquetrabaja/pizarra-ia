@@ -255,6 +255,8 @@ def render_video(plan: dict, opts: RenderOptions, out_dir: str | Path, api_key: 
             progress("subtitulos", 0.5, "Sincronizando los subtítulos con la voz…")
             aligned = align_script([sc["narracion"] for sc in scenes], ranges, audio, sr, opts.idioma,
                                    log=lambda m: (log.info(m), progress("subtitulos", 0.5, m)))
+            from .align import release
+            release()  # el vídeo es lo que más memoria usa: fuera el modelo
         if aligned:
             for ws in aligned:
                 cues += cues_for_words(ws, subs.font, subs.max_width)
