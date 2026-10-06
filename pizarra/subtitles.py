@@ -149,6 +149,40 @@ def cues_for_spans(spans: list[tuple[str, float, float]], font, max_width: int, 
     return cues
 
 
+CAPTION_LEAD = 0.08    # el subtítulo aparece un poco antes de que empiece la voz
+CAPTION_HOLD = 0.15    # y se mantiene un poco tras la última palabra
+CAPTION_BRIDGE = 0.35  # huecos más cortos que esto se cierran (sin parpadeo)
+
+
+def finalize_cues(cues: list[Cue]) -> list[Cue]:
+    """Sin solapes; los huecos cortos entre subtítulos se cierran."""
+    for a, b in zip(cues, cues[1:]):
+        if a.end > b.start:
+            a.end = max(a.start + 0.05, b.start)
+            b.start = max(b.start, a.end)
+        elif b.start - a.end < CAPTION_BRIDGE:
+            a.end = b.start
+    return cues
+
+
+def cues_for_words(words, font, max_width: int, lead: float = CAPTION_LEAD,
+                   hold: float = CAPTION_HOLD) -> list[Cue]:
+    """Subtítulos a partir de palabras cronometradas (objetos con .text, .start, .end en la línea de
+    tiempo global). Mismos trozos que ``cues_for_spans`` (frase a frase, máx. 2 líneas), pero cada uno
+    empieza con su primera palabra (- ``lead``) y acaba con la última (+ ``hold``)."""
+    cues: list[Cue] = []
+    k = 0
+    text = " ".join(w.text for w in words)
+    for sent in split_sentences(text):
+        for part in chunk_sentence(sent, font, max_width):
+            n = len(part.split())
+            ws = words[k:k + n]
+            k += n
+            if ws:
+                cues.append(Cue(max(0.0, ws[0].start - lead), ws[-1].end + hold, part))
+    return finalize_cues(cues)
+
+
 def _ts(t: float) -> str:
     ms = int(round(max(0.0, t) * 1000))
     h, ms = divmod(ms, 3600000)

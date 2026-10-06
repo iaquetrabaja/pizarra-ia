@@ -20,8 +20,8 @@ from .gemini import Gemini, GeminiError, pick_models
 from .images import image_prompt, placeholder_image, vector_image
 from .script import estimate_seconds, generate_plan, normalize_plan
 from .style import build_layers, make_board
-from .subtitles import SubtitleRenderer, cues_for_spans, to_srt
-from .tts import Speech, gemini_speech, synth_piper, write_wav
+from .subtitles import SubtitleRenderer, cues_for_spans, cues_for_words, to_srt
+from .tts import Speech, gemini_speech, narration_speeches, synth_piper, write_wav
 from .video import FFmpegWriter
 
 log = logging.getLogger("pizarra")
@@ -52,6 +52,14 @@ class RenderResult:
         return {"video": str(self.video), "srt": str(self.srt), "plan": str(self.plan),
                 "duration": round(self.duration, 2), "seconds": self.seconds,
                 "api_calls": self.api_calls, "engines": self.engines, "warnings": self.warnings}
+
+
+def load_scene_image(folder: str | Path, i: int) -> np.ndarray:
+    path = Path(folder) / f"escena_{i + 1:02d}.png"
+    img = cv2.imread(str(path))
+    if img is None:
+        raise ValueError(f"No encuentro la imagen {path}")
+    return img
 
 
 def resolve_models(gem: Gemini, opts: RenderOptions) -> dict:
@@ -91,7 +99,11 @@ def make_plan(tema: str, opts: RenderOptions, api_key: str | None = None, duraci
 # ----------------------------------------------------------------------------
 def render_video(plan: dict, opts: RenderOptions, out_dir: str | Path, api_key: str | None = None,
                  offline: bool = False, progress: Progress = _noop,
-                 cancel: Callable[[], bool] = lambda: False) -> RenderResult:
+                 cancel: Callable[[], bool] = lambda: False, narracion: str | Path | None = None,
+                 imagenes_dir: str | Path | None = None, alinear: bool = True) -> RenderResult:
+    """Render completo. Opcionales (CLI): ``narracion`` = audio ya grabado en lugar de TTS;
+    ``imagenes_dir`` = carpeta con escena_01.png, escena_02.png... en lugar de generarlas;
+    ``alinear`` = subtítulos con tiempos reales por palabra (faster-whisper)."""
     t_start = time.time()
     opts.validate()
     out = Path(out_dir)
@@ -160,7 +172,7 @@ def render_video(plan: dict, opts: RenderOptions, out_dir: str | Path, api_key: 
 
         def job(i):
             check()
-            img = make_image(i)
+            img = load_scene_image(imagenes_dir, i) if imagenes_dir else make_image(i)
             cv2.imwrite(str(out / f"escena_{i + 1:02d}.png"), img)
             images[i] = img
             done[0] += 1
@@ -175,37 +187,45 @@ def render_video(plan: dict, opts: RenderOptions, out_dir: str | Path, api_key: 
                                "demo": "local"}.get(state["mode"], state["mode"])
         if mode == "ia" and state["mode"] != "ia":
             engines["imagenes"] = f"mixto (ia→vector:{models['texto']})"
+        if imagenes_dir:
+            engines["imagenes"] = f"archivos:{Path(imagenes_dir).name}"
         timings["imagenes"] = round(time.time() - t0, 1)
 
         # ---------------- voz ------------------------------------------------
         check()
         t0 = time.time()
         speeches: list[Speech] = []
-        tts = opts.tts
-        if tts == "auto":
-            tts = "gemini" if (gem and models["tts"]) else "piper"
-        if tts == "gemini" and not (gem and models["tts"]):
-            warnings.append("No hay modelo TTS de Gemini disponible; uso Piper (local).")
-            tts = "piper"
-        if tts == "gemini":
-            try:
+        if narracion:
+            progress("voz", 0.36, "Usando la narración grabada…")
+            speeches = narration_speeches(narracion, [sc["narracion"] for sc in scenes], opts.idioma, opts.fps,
+                                          log=lambda m: progress("voz", 0.4, m))
+            engines["voz"] = f"audio:{Path(narracion).name}"
+        else:
+            tts = opts.tts
+            if tts == "auto":
+                tts = "gemini" if (gem and models["tts"]) else "piper"
+            if tts == "gemini" and not (gem and models["tts"]):
+                warnings.append("No hay modelo TTS de Gemini disponible; uso Piper (local).")
+                tts = "piper"
+            if tts == "gemini":
+                try:
+                    for i, sc in enumerate(scenes):
+                        check()
+                        progress("voz", 0.36 + 0.14 * i / n, f"Voz {i + 1}/{n} (Gemini)")
+                        speeches.append(gemini_speech(gem, models["tts"], sc["narracion"], opts.voz))
+                    engines["voz"] = f"gemini:{models['tts']} ({opts.voz})"
+                except GeminiError as e:
+                    warnings.append(f"{e} Uso la voz local Piper para todo el vídeo.")
+                    speeches = []
+                    tts = "piper"
+            if tts == "piper":
                 for i, sc in enumerate(scenes):
                     check()
-                    progress("voz", 0.36 + 0.14 * i / n, f"Voz {i + 1}/{n} (Gemini)")
-                    speeches.append(gemini_speech(gem, models["tts"], sc["narracion"], opts.voz))
-                engines["voz"] = f"gemini:{models['tts']} ({opts.voz})"
-            except GeminiError as e:
-                warnings.append(f"{e} Uso la voz local Piper para todo el vídeo.")
-                speeches = []
-                tts = "piper"
-        if tts == "piper":
-            for i, sc in enumerate(scenes):
-                check()
-                progress("voz", 0.36 + 0.14 * i / n, f"Voz {i + 1}/{n} (Piper)")
-                speeches.append(synth_piper(sc["narracion"], opts.idioma, opts.velocidad))
-            from .tts import piper_voice_name, unload_piper
-            engines["voz"] = f"piper:{piper_voice_name(opts.idioma)}"
-            unload_piper()
+                    progress("voz", 0.36 + 0.14 * i / n, f"Voz {i + 1}/{n} (Piper)")
+                    speeches.append(synth_piper(sc["narracion"], opts.idioma, opts.velocidad))
+                from .tts import piper_voice_name, unload_piper
+                engines["voz"] = f"piper:{piper_voice_name(opts.idioma)}"
+                unload_piper()
         timings["voz"] = round(time.time() - t0, 1)
 
         sr = speeches[0].sr
@@ -218,14 +238,32 @@ def render_video(plan: dict, opts: RenderOptions, out_dir: str | Path, api_key: 
         write_wav(wav, audio, sr)
 
         # ---------------- subtítulos ----------------------------------------
+        # Tiempos reales por palabra: ASR local (faster-whisper) alineado con el guion. Si no se
+        # puede, los de siempre (por frase, estimados por longitud y pausas).
+        t0 = time.time()
         subs = SubtitleRenderer(layout)
         cues = []
-        bounds = []
+        bounds, ranges = [], []
         t = 0.0
-        for s in speeches:
-            cues += cues_for_spans(s.spans, subs.font, subs.max_width, offset=t)
-            bounds.append((t, t + s.duration))
-            t += s.duration
+        for sp in speeches:
+            bounds.append((t, t + sp.duration))
+            ranges.append((t + sp.spans[0][1], t + sp.spans[-1][2]) if sp.spans else (t, t + sp.duration))
+            t += sp.duration
+        aligned = None
+        if alinear:
+            from .align import align_script
+            progress("subtitulos", 0.5, "Sincronizando los subtítulos con la voz…")
+            aligned = align_script([sc["narracion"] for sc in scenes], ranges, audio, sr, opts.idioma,
+                                   log=lambda m: (log.info(m), progress("subtitulos", 0.5, m)))
+        if aligned:
+            for ws in aligned:
+                cues += cues_for_words(ws, subs.font, subs.max_width)
+            engines["subtitulos"] = "asr"
+        else:
+            for sp, (b0, _b1) in zip(speeches, bounds):
+                cues += cues_for_spans(sp.spans, subs.font, subs.max_width, offset=b0)
+            engines["subtitulos"] = "estimado"
+        timings["subtitulos"] = round(time.time() - t0, 1)
         srt_path = out / "subtitulos.srt"
         srt_path.write_text(to_srt(cues), encoding="utf-8")
 

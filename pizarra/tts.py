@@ -9,6 +9,7 @@ que luego se usan para cronometrar los subtítulos:
 from __future__ import annotations
 
 import logging
+import subprocess
 import threading
 import wave
 from dataclasses import dataclass
@@ -145,8 +146,8 @@ def trim_silence(samples: np.ndarray, sr: int, keep: float = 0.08) -> np.ndarray
     return samples[a:b]
 
 
-def find_pauses(samples: np.ndarray, sr: int, min_len: float = 0.12) -> list[float]:
-    """Centros (s) de los silencios internos de al menos min_len segundos."""
+def pause_intervals(samples: np.ndarray, sr: int, min_len: float = 0.12) -> list[tuple[float, float]]:
+    """(inicio, fin) en segundos de los silencios internos de al menos min_len segundos."""
     rms, n = _rms_frames(samples, sr)
     if len(rms) == 0:
         return []
@@ -159,11 +160,28 @@ def find_pauses(samples: np.ndarray, sr: int, min_len: float = 0.12) -> list[flo
             while j < len(quiet) and quiet[j]:
                 j += 1
             if (j - i) * win >= min_len and i > 0 and j < len(quiet):
-                out.append((i + j) / 2 * win)
+                out.append((i * win, j * win))
             i = j
         else:
             i += 1
     return out
+
+
+def find_pauses(samples: np.ndarray, sr: int, min_len: float = 0.12) -> list[float]:
+    """Centros (s) de los silencios internos de al menos min_len segundos."""
+    return [(a + b) / 2 for a, b in pause_intervals(samples, sr, min_len)]
+
+
+def voiced_extent(samples: np.ndarray, sr: int) -> tuple[float, float]:
+    """(inicio, fin) en segundos de la parte con voz (mismo umbral que trim_silence)."""
+    rms, n = _rms_frames(samples, sr)
+    if len(rms) == 0:
+        return 0.0, len(samples) / sr
+    thr = max(80.0, 0.04 * float(np.percentile(rms, 95)))
+    voiced = np.nonzero(rms > thr)[0]
+    if len(voiced) == 0:
+        return 0.0, len(samples) / sr
+    return voiced[0] * n / sr, min(len(samples), (voiced[-1] + 1) * n) / sr
 
 
 def estimate_spans(sents: list[str], samples: np.ndarray, sr: int, t0: float) -> list[tuple[str, float, float]]:
@@ -199,6 +217,51 @@ def speech_from_pcm(text: str, pcm: np.ndarray, sr: int, engine: str) -> Speech:
     spans = estimate_spans(split_sentences(text), audio, sr, LEAD_IN)
     full = np.concatenate([silence(LEAD_IN, sr), audio, silence(TAIL, sr)])
     return Speech(full, sr, spans, engine)
+
+
+# --------------------------------------------------------------------------
+# Narración ya grabada (sin TTS)
+# --------------------------------------------------------------------------
+def narration_speeches(path: str | Path, texts: list[str], idioma: str = "es", fps: int = 24,
+                       sr: int = 24000, log=log.info) -> list[Speech]:
+    """Trocea una narración ya grabada (WAV, MP3, MP4...) en una Speech por escena, sin recortarla:
+    corta en el silencio entre la última palabra de una escena y la primera de la siguiente
+    (alineación con el guion; sin ASR, por longitud de texto ajustada a las pausas). Los cortes caen
+    en fotogramas exactos y el vídeo dura lo mismo que el audio."""
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", str(sr),
+                          "-f", "s16le", "-"], check=True, capture_output=True).stdout
+    a = np.frombuffer(raw, dtype="<i2").astype(np.int16)
+    dur = len(a) / sr
+    log(f"Narración: {Path(path).name} ({dur:.1f} s)")
+    cuts = None
+    if len(texts) > 1:
+        from .align import align_script
+        words = align_script(texts, [(0.0, dur)] * len(texts), a, sr, idioma, log)
+        if words and all(words):
+            pauses = pause_intervals(a, sr)
+            cuts = []
+            for prev, nxt in zip(words, words[1:]):
+                e, s0 = prev[-1].end, nxt[0].start
+                cand = [(g0, g1) for g0, g1 in pauses if g0 < s0 + 0.2 and g1 > e - 0.2]
+                g = max(cand, key=lambda x: x[1] - x[0]) if cand else (e, s0)
+                # corte más cerca del final de la pausa (cola de 0,45 s + entrada de 0,25 s por escena)
+                cuts.append(g[0] + 0.64 * (g[1] - g[0]))
+            if not all(c2 > c1 for c1, c2 in zip(cuts, cuts[1:])):
+                cuts = None
+    if cuts is None:
+        log("Narración: troceo por pausas (sin alineación).")
+        cuts = [sp[2] for sp in estimate_spans(texts, a, sr, 0.0)[:-1]]
+    idx = [0] + [int(round(round(c * fps) / fps * sr)) for c in cuts]
+    end = int(round(np.ceil(dur * fps) / fps * sr))
+    a = np.concatenate([a, np.zeros(max(0, end - len(a)), np.int16)])
+    idx.append(len(a))
+    out = []
+    for text, i, j in zip(texts, idx, idx[1:]):
+        piece = a[i:j]
+        v0, v1 = voiced_extent(piece, sr)
+        spans = estimate_spans(split_sentences(text), piece[int(v0 * sr):int(v1 * sr)], sr, v0)
+        out.append(Speech(piece, sr, spans, "audio"))
+    return out
 
 
 # --------------------------------------------------------------------------

@@ -20,6 +20,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Modelo Whisper para alinear los subtítulos con la voz, dentro de la imagen
+# (no depende de la red ni retrasa la primera petición)
+ENV PIZARRA_WHISPER_DIR=/opt/whisper \
+    PIZARRA_WHISPER_MODEL=base \
+    HF_HUB_DISABLE_TELEMETRY=1
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('base', device='cpu', compute_type='int8', download_root='/opt/whisper')"
+ENV HF_HUB_OFFLINE=1
+
 COPY pizarra ./pizarra
 COPY LICENSE README.md ./
 

@@ -150,6 +150,9 @@ Opciones principales:
 | `--investigar` | buscar datos en la web antes de escribir | no |
 | `--review` | sólo escribir `guion.json` para editarlo | no |
 | `--guion archivo.json` | renderizar un guion ya escrito o editado | — |
+| `--audio narracion.wav` | usar una narración ya grabada (WAV, MP3, MP4…) en vez de generar la voz; con `--guion` | — |
+| `--imagenes-dir carpeta` | reutilizar `escena_01.png`, `escena_02.png`… en vez de generar los dibujos | — |
+| `--sin-alineacion` | subtítulos con tiempos estimados (sin Whisper) | no |
 | `--offline` | demo sin clave (guion, dibujos y voz locales) | no |
 | `--musica archivo.mp3` | música de fondo en bucle, con fundido al final | ninguna |
 | `--volumen-musica` | 0–1 | `0.12` |
@@ -203,7 +206,9 @@ Variables de entorno:
 |---|---|---|
 | `ROOT_PATH` | prefijo público, p. ej. `/pizarra` | vacío |
 | `PIZARRA_DATA` | carpeta de trabajos | `./datos` |
-| `PIZARRA_CACHE` | caché (voces Piper) | `~/.cache/pizarra-ia` |
+| `PIZARRA_CACHE` | caché (voces Piper, modelo Whisper) | `~/.cache/pizarra-ia` |
+| `PIZARRA_WHISPER_MODEL` | modelo para alinear los subtítulos (`base` o `small`) | `base` |
+| `PIZARRA_WHISPER_DIR` | dónde se guarda ese modelo (en Docker va dentro de la imagen) | `$PIZARRA_CACHE/whisper` |
 | `RENDERS_POR_DIA` / `GUIONES_POR_DIA` | límites por IP | `3` / `20` |
 | `MAX_SEGUNDOS` | duración máxima | `120` |
 | `MAX_COLA` | trabajos en cola | `20` |
@@ -253,7 +258,7 @@ Inspirada en `draw_animation.py` de storyboard-ai, pero reescrita para CPU y sin
 5. **Tiempo.** Cada escena dura lo mismo que su narración: ~85 % se dedica a dibujar, después viene el fundido a color y una breve pausa.
 6. **Streaming.** Los fotogramas se envían a ffmpeg por una tubería, sin guardarse en memoria ni en disco. Cada fotograma revela un tramo de un único array de píxeles ordenados (una operación numpy). La escena siguiente se prepara en paralelo mientras se codifica la actual.
 
-**Subtítulos.** Con Piper se sintetiza frase a frase, así que los tiempos son exactos. Con Gemini se estiman por longitud de texto y se «pegan» a los silencios reales del audio, una alineación barata. Cada frase se parte en trozos de como mucho 2 líneas y 9 palabras, equilibrados y sin palabras huérfanas.
+**Subtítulos.** Tras la voz, un reconocimiento de voz local ([faster-whisper](https://github.com/SYSTRAN/faster-whisper) `base`, int8, en CPU) da el instante de cada palabra. Esas marcas se alinean con las palabras del **guion**, que es lo que se muestra (sin las faltas del reconocedor), y las palabras no reconocidas se interpolan. Cada frase se parte en trozos de como mucho 2 líneas y 9 palabras, equilibrados y sin palabras huérfanas; cada trozo aparece 80 ms antes de que empiece su primera palabra y el `.srt` usa los mismos tiempos. Añade ~3–6 s por vídeo y ~150 MB de memoria. Si Whisper no está disponible, los tiempos se estiman por longitud de texto y se «pegan» a los silencios reales del audio.
 
 ### Rendimiento (medido)
 
@@ -282,7 +287,6 @@ Cubren la elección de modelos, el parseo de JSON, la validación del guion, el 
 
 - Las imágenes las decide el modelo: a veces añade texto inventado en objetos pequeños o detalles muy densos (que se dibujan como una mancha que avanza). Si una escena no te convence, simplifica su campo `visual` en el guion.
 - El orden de los trazos es heurístico: no conoce la semántica del dibujo (no sabe que «primero va la cabeza»).
-- Con Gemini TTS, los subtítulos se sincronizan por frases y silencios, no palabra a palabra.
 - La voz Piper es correcta pero menos natural que la de Gemini.
 - La cola y los límites de la web viven en memoria: se reinician al reiniciar el servicio.
 
@@ -291,6 +295,7 @@ Cubren la elección de modelos, el parseo de JSON, la validación del guion, el 
 ## Créditos y licencia
 
 - Idea y enfoque inspirados en **[storyboard-ai](https://github.com/yogendra-yatnalkar/storyboard-ai)** de Yogendra Yatnalkar (GPL-3.0). Las imágenes de la mano (`pizarra/assets/drawing-hand.png` y `hand-mask.png`) proceden de ese proyecto.
+- Alineación de subtítulos: **[faster-whisper](https://github.com/SYSTRAN/faster-whisper)** (MIT) con los modelos Whisper de OpenAI (MIT).
 - Voz local: **[Piper](https://github.com/OHF-Voice/piper1-gpl)** (GPL-3.0). Cada modelo de voz tiene su propia licencia: consúltala en [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices).
 - Fuentes: **Roboto** y **Patrick Hand** (SIL Open Font License; ver `pizarra/assets/fonts/`).
 - Hecho por **[IA Que Trabaja](https://iaquetrabaja.com)**.

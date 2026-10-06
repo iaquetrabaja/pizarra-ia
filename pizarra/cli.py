@@ -5,6 +5,7 @@ Ejemplos:
   python -m pizarra "Tema" --review                # escribe salida/guion.json y para
   python -m pizarra --guion salida/guion.json      # renderiza un guion editado
   python -m pizarra --offline                      # demo sin clave (dibujos y voz locales)
+  python -m pizarra --guion g.json --audio voz.wav --imagenes-dir carpeta   # re-render sin llamar a Gemini
 """
 from __future__ import annotations
 
@@ -50,6 +51,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--musica", help="Archivo de música de fondo (opcional)")
     p.add_argument("--volumen-musica", type=float, default=0.12)
     p.add_argument("--fps", type=int, default=24)
+    p.add_argument("--audio", help="Narración ya grabada (WAV, MP3, MP4...) en lugar de generar la voz; "
+                                   "requiere --guion")
+    p.add_argument("--imagenes-dir", help="Carpeta con escena_01.png, escena_02.png... en lugar de generarlas")
+    p.add_argument("--sin-alineacion", action="store_true",
+                   help="Subtítulos con tiempos estimados (sin alinear con la voz mediante Whisper)")
     p.add_argument("--modelo-texto")
     p.add_argument("--modelo-imagen")
     p.add_argument("--modelo-tts")
@@ -135,7 +141,12 @@ def main(argv: list[str] | None = None) -> int:
                   + (" --offline" if args.offline else ""))
             return 0
 
-        res = render_video(plan, opts, out, api_key=args.clave, offline=args.offline, progress=progress)
+        if args.audio and not args.guion:
+            print("--audio necesita el guion de esa narración (--guion).", file=sys.stderr)
+            return 2
+        res = render_video(plan, opts, out, api_key=args.clave, offline=args.offline, progress=progress,
+                           narracion=args.audio, imagenes_dir=args.imagenes_dir,
+                           alinear=not args.sin_alineacion)
         print(f"\nVídeo: {res.video}\nSubtítulos: {res.srt}\nGuion: {res.plan}")
         print(f"Duración: {res.duration:.1f} s · tiempos: {res.seconds}")
         print(f"Motores: {res.engines}")
