@@ -11,6 +11,18 @@
 
 Pruébalo online gratis en **[tools.iaquetrabaja.com/pizarra](https://tools.iaquetrabaja.com/pizarra/)** (cuenta gratuita).
 
+### Coste y tiempo aproximados (por 1 minuto de vídeo)
+
+| | Con clave de pago (imágenes de Gemini) | Con clave gratuita |
+|---|---|---|
+| Guion (gemini-3.8-flash) | ~0,01 $ | 0 $ (cuota gratis) |
+| ~8 ilustraciones (gemini-3.1-flash-image, 0,067 $/imagen) | ~0,54 $ | 0 $ — se dibujan como vectores con el modelo de texto |
+| Voz, 60 s (gemini-3.8-flash-tts) | ~0,02 $ | 0 $ (cuota gratis) o voz local Piper |
+| **Total** | **≈ 0,55 $ (≈ 0,50 €)** | **0 €** |
+| **Tiempo de generación** | **≈ 2–3 min** (≈ 1 min de IA + ≈ 1 min de render en 2 núcleos de CPU) | ≈ 2–3 min |
+
+Precios de la API de Gemini a octubre de 2026 (tarifas de texto y voz que Google duplica a partir del 1 de enero de 2027). Las imágenes de Gemini no tienen cuota gratuita: con una clave gratuita Pizarra IA usa automáticamente ilustraciones vectoriales. Unas 13–20 llamadas a la API por vídeo.
+
 Escribes un tema y Pizarra IA:
 
 1. escribe el guion y lo divide en escenas (opcionalmente investigando en la web),
