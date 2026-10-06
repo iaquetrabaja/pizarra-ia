@@ -132,3 +132,8 @@ video { width: 100%; max-height: 70vh; background: #000; display: block; }
 
 .foot { border-top: 1px solid var(--line); padding-top: 18px; padding-bottom: 40px; font-size: 14px; color: var(--muted); }
 .foot a { color: var(--muted); }
+
+/* Opciones avanzadas: explicación bajo cada opción */
+.adv .field small.hint, .check small.hint { display: block; font-size: 13px; line-height: 1.45; margin-top: 6px; font-weight: 400; }
+.check small.hint { margin-left: 26px; margin-top: 2px; }
+[data-solo-con-opciones][hidden] { display: none !important; }

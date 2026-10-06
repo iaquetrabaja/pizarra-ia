@@ -68,7 +68,17 @@
   function fillSelect(sel, items, def) {
     sel.length = 1;
     items.forEach((m) => sel.add(new Option(m + (m === def ? " (recomendado)" : ""), m)));
+    syncChoices();
   }
+
+  // Un desplegable con una sola opción real no sirve para nada: se oculta (Automático + 1 modelo = nada que elegir).
+  function syncChoices() {
+    document.querySelectorAll("[data-solo-con-opciones]").forEach((f) => {
+      const sel = f.querySelector("select");
+      f.hidden = !sel || sel.options.length < 3;
+    });
+  }
+  syncChoices();
 
   $("#btn-clave").addEventListener("click", async () => {
     const st = $("#clave-estado");

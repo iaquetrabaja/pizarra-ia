@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pizarra IA</title>
 <meta name="description" content="Crea vídeos de animación de pizarra con tu propia clave de Gemini. Gratis y de código abierto.">
-<link rel="stylesheet" href="static/app.css?v=3">
+<link rel="stylesheet" href="static/app.css?v=4">
 </head>
 <body>
 <header class="top">
@@ -86,20 +86,26 @@
 
     <details class="adv">
       <summary>Opciones avanzadas</summary>
-      <div class="grid">
-        <label class="field">Modelo de texto <select id="m-texto"><option value="">Automático</option></select></label>
-        <label class="field">Modelo de imagen <select id="m-imagen"><option value="">Automático</option></select></label>
-        <label class="field">Modelo de voz <select id="m-tts"><option value="">Automático</option></select></label>
-        <label class="field">Dibujos
+      <p class="hint">Si no tocas nada, Pizarra IA elige lo mejor que permita tu clave. Los modelos aparecen al comprobar tu clave, y solo si tienes más de uno para elegir.</p>
+      <div class="grid adv">
+        <label class="field" data-solo-con-opciones>Modelo de texto <select id="m-texto"><option value="">Automático</option></select>
+          <small class="hint">La IA que escribe el guion y divide las escenas.</small></label>
+        <label class="field" data-solo-con-opciones>Modelo de imagen <select id="m-imagen"><option value="">Automático</option></select>
+          <small class="hint">La IA que dibuja cada escena. En Gemini las imágenes son de pago (≈ 0,07 $ por dibujo).</small></label>
+        <label class="field" data-solo-con-opciones>Modelo de voz <select id="m-tts"><option value="">Automático</option></select>
+          <small class="hint">La IA que lee la narración. La voz concreta se elige arriba.</small></label>
+        <label class="field">Tipo de dibujo
           <select id="imagenes">
             <option value="auto">Automático</option>
-            <option value="ia">Modelo de imagen</option>
+            <option value="ia">Ilustraciones con IA</option>
             <option value="vector">Vectorial (gratis, más simple)</option>
           </select>
-        </label>
+          <small class="hint"><b>Automático</b>: ilustraciones con IA si tu clave lo permite; si no, vectoriales. <b>Vectorial</b>: dibujos más sencillos hechos con el modelo de texto, sin coste.</small></label>
       </div>
-      <label class="check"><input type="checkbox" id="color" checked> Colorear al terminar cada dibujo</label>
-      <label class="check"><input type="checkbox" id="subtitulos" checked> Subtítulos en el vídeo</label>
+      <label class="check"><input type="checkbox" id="color" checked> Colorear al terminar cada dibujo
+        <small class="hint">Cuando la mano termina una escena, el dibujo se rellena de color.</small></label>
+      <label class="check"><input type="checkbox" id="subtitulos" checked> Subtítulos dentro del vídeo
+        <small class="hint">Los graba en la imagen. El archivo .srt se descarga siempre, por si prefieres subirlos aparte.</small></label>
     </details>
 
     <div class="actions">
@@ -165,6 +171,6 @@
   </li>
 </template>
 
-<script src="static/app.js?v=3"></script>
+<script src="static/app.js?v=4"></script>
 </body>
 </html>
