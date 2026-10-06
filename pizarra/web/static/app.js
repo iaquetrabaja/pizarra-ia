@@ -237,9 +237,15 @@
     startRender({ clave: $("#clave").value.trim(), plan, opciones: options() }, st);
   });
 
-  $("#btn-demo").addEventListener("click", () => {
-    const o = options();
-    startRender({ demo: true, opciones: { formato: o.formato, estilo: o.estilo } }, $("#guion-estado"));
+  // «Mira un vídeo de ejemplo»: si la página tiene un vídeo de ejemplo (#ejemplo), baja hasta él y lo reproduce;
+  // si no, el enlace lleva a los ejemplos del README en GitHub.
+  $("#ver-ejemplo").addEventListener("click", (e) => {
+    const ej = document.getElementById("ejemplo");
+    if (!ej) return;
+    e.preventDefault();
+    ej.scrollIntoView({ behavior: "smooth", block: "center" });
+    const v = ej.querySelector("video");
+    if (v) { v.play().catch(() => {}); }
   });
 
   function resumeJob(id) {
