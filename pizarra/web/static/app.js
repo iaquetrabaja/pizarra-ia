@@ -49,7 +49,9 @@
       const idi = $("#idioma");
       Object.entries(cfg.idiomas).forEach(([k, v]) => idi.add(new Option(v, k, k === "es", k === "es")));
       const voz = $("#voz");
-      cfg.voces.forEach((v) => voz.add(new Option(v, v, v === "Kore", v === "Kore")));
+      const def = cfg.voz_defecto || "Charon";
+      const info = cfg.voces_info || {};
+      cfg.voces.forEach((v) => voz.add(new Option(info[v] ? `${v} — ${info[v]}` : v, v, v === def, v === def)));
       $("#cupo").textContent = `Te quedan ${cfg.renders_restantes} de ${cfg.renders_por_dia} vídeos hoy en este servidor · máximo ${cfg.max_segundos} s por vídeo.`;
     } catch (e) { /* la página sigue funcionando */ }
     const last = store.get(JOB_STORE);
@@ -82,6 +84,50 @@
       const partes = [`texto: ${r.defecto.texto || "ninguno"}`, `imagen: ${r.defecto.imagen || "ninguno (dibujo vectorial)"}`, `voz: ${r.defecto.tts || "ninguna (voz local)"}`];
       setStatus(st, "Clave válida · " + partes.join(" · "), "ok");
     } catch (e) { setStatus(st, e.message, "err"); }
+  });
+
+  // ---------- voz ----------
+  let audioUrl = null;
+  function syncVoice() {
+    const local = radio("tts") === "piper";
+    $("#voz").disabled = local;
+    $("#btn-probar").textContent = local ? "Probar voz local" : "Probar voz";
+  }
+  document.querySelectorAll('input[name="tts"]').forEach((el) => el.addEventListener("change", syncVoice));
+  $("#voz").addEventListener("change", () => setStatus($("#voz-estado"), ""));
+
+  $("#btn-probar").addEventListener("click", async () => {
+    const st = $("#voz-estado");
+    const motor = radio("tts") === "piper" ? "piper" : "gemini";
+    const clave = $("#clave").value.trim();
+    if (motor === "gemini" && !clave) {
+      setStatus(st, "Para oír las voces de Gemini pega tu clave (paso 1). La voz local se puede probar sin clave.", "err");
+      return;
+    }
+    const btn = $("#btn-probar");
+    btn.disabled = true;
+    setStatus(st, motor === "piper" ? "Generando la voz local…" : `Generando la voz ${$("#voz").value}…`);
+    try {
+      const r = await fetch("api/probar-voz", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clave: motor === "gemini" ? clave : null, voz: $("#voz").value, motor,
+          idioma: $("#idioma").value, modelo: $("#m-tts").value || null }),
+      });
+      if (!r.ok) {
+        let msg = `Error ${r.status}`;
+        try { const d = await r.json(); if (typeof d.detail === "string") msg = d.detail; } catch (e) { /* nada */ }
+        throw new Error(msg);
+      }
+      const blob = await r.blob();
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      audioUrl = URL.createObjectURL(blob);
+      const a = $("#audio-voz");
+      a.src = audioUrl;
+      a.classList.remove("hidden");
+      setStatus(st, "");
+      try { await a.play(); } catch (e) { /* el navegador bloquea la reproducción automática */ }
+    } catch (e) { setStatus(st, e.message, "err"); }
+    btn.disabled = false;
   });
 
   // ---------- guion ----------
@@ -167,7 +213,7 @@
   function options() {
     return {
       formato: radio("formato"), estilo: radio("estilo"), idioma: $("#idioma").value, voz: $("#voz").value,
-      tts: $("#tts").value, imagenes: $("#imagenes").value, color: $("#color").checked,
+      tts: radio("tts"), imagenes: $("#imagenes").value, color: $("#color").checked,
       subtitulos: $("#subtitulos").checked,
       modelo_texto: $("#m-texto").value || null, modelo_imagen: $("#m-imagen").value || null,
       modelo_tts: $("#m-tts").value || null,

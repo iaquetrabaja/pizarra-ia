@@ -10,20 +10,24 @@ Variables de entorno:
   RETENCION_HORAS    horas que se guardan los vídeos (24)
   TRUST_PROXY        1 si está detrás de nginx (usa X-Forwarded-For / X-Real-IP)
   RENDER_THREADS     hilos de ffmpeg (0 = auto)
+  PRUEBAS_VOZ_HORA   pruebas de voz por IP y hora (20)
 
 Arranque:  uvicorn pizarra.web.app:app --host 0.0.0.0 --port 8000
 """
 from __future__ import annotations
 
+import io
 import os
+import wave
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from ..config import FONTS_DIR, GEMINI_VOICES, LANGUAGES, STYLES, RenderOptions
+from ..config import (DEFAULT_VOICE, FONTS_DIR, GEMINI_VOICE_INFO, GEMINI_VOICES, LANGUAGES, STYLES,
+                      RenderOptions, voice_sample)
 from ..demo import demo_plan
 from ..gemini import Gemini, GeminiError, pick_models
 from ..script import estimate_seconds, generate_plan, normalize_plan
@@ -37,11 +41,13 @@ GUIONES_POR_DIA = int(os.environ.get("GUIONES_POR_DIA", "20"))
 MAX_SEGUNDOS = float(os.environ.get("MAX_SEGUNDOS", "120"))
 TRUST_PROXY = os.environ.get("TRUST_PROXY", "0") == "1"
 THREADS = int(os.environ.get("RENDER_THREADS", "0"))
+PRUEBAS_VOZ_HORA = int(os.environ.get("PRUEBAS_VOZ_HORA", "20"))
 
 jobs = JobManager(DATA, max_queue=int(os.environ.get("MAX_COLA", "20")),
                   retention_hours=float(os.environ.get("RETENCION_HORAS", "24")))
 render_limit = RateLimiter(RENDERS_POR_DIA)
 script_limit = RateLimiter(GUIONES_POR_DIA)
+preview_limit = RateLimiter(PRUEBAS_VOZ_HORA, window=3600)
 
 router = APIRouter()
 
@@ -74,6 +80,14 @@ class ScriptIn(KeyIn):
     modelo_texto: str | None = None
 
 
+class PreviewIn(BaseModel):
+    clave: str | None = Field(default=None, max_length=200)
+    voz: str = DEFAULT_VOICE
+    modelo: str | None = Field(default=None, max_length=100)
+    motor: str = "gemini"        # gemini | piper
+    idioma: str = "es"
+
+
 class RenderIn(BaseModel):
     clave: str | None = Field(default=None, max_length=200)
     demo: bool = False
@@ -91,7 +105,8 @@ def index():
 @router.get("/api/config")
 def config(request: Request):
     ip = client_ip(request)
-    return {"voces": GEMINI_VOICES, "estilos": STYLES, "idiomas": LANGUAGES, "max_segundos": MAX_SEGUNDOS,
+    return {"voces": GEMINI_VOICES, "voces_info": GEMINI_VOICE_INFO, "voz_defecto": DEFAULT_VOICE,
+            "estilos": STYLES, "idiomas": LANGUAGES, "max_segundos": MAX_SEGUNDOS,
             "renders_restantes": render_limit.remaining(ip), "renders_por_dia": RENDERS_POR_DIA,
             **jobs.stats()}
 
@@ -111,6 +126,54 @@ def modelos(body: KeyIn):
         "imagen": [n for n in gen if "image" in n],
         "tts": [n for n in gen if "tts" in n],
     }
+
+
+def _wav_bytes(samples, sr: int) -> bytes:
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sr)
+        wf.writeframes(samples.astype("<i2").tobytes())
+    return buf.getvalue()
+
+
+@router.post("/api/probar-voz")
+def probar_voz(body: PreviewIn, request: Request):
+    """Lee una frase corta con la voz elegida y devuelve un WAV. La clave no se guarda ni se registra."""
+    idioma = body.idioma if body.idioma in LANGUAGES else "es"
+    if body.motor not in ("gemini", "piper"):
+        _err(ValueError("Motor de voz no válido."), 400)
+    if body.motor == "gemini":
+        if body.voz not in GEMINI_VOICE_INFO:
+            _err(ValueError("Voz no válida."), 400)
+        if not body.clave or len(body.clave.strip()) < 10:
+            _err(ValueError("Pega tu clave de Gemini (paso 1) para probar las voces de Gemini."), 400)
+    ip = client_ip(request)
+    if not preview_limit.hit(ip):
+        _err(Exception(f"Has llegado al límite de {PRUEBAS_VOZ_HORA} pruebas de voz por hora."), 429)
+    try:
+        if body.motor == "piper":
+            from ..tts import synth_piper, unload_piper
+            sp = synth_piper(voice_sample("local", idioma), idioma)
+            unload_piper()
+            pcm, sr = sp.samples, sp.sr
+        else:
+            g = Gemini(body.clave, max_wait=10)
+            try:
+                model = body.modelo or pick_models(g.list_models())["tts"]
+                if not model:
+                    raise GeminiError("Tu clave no tiene ningún modelo de voz de Gemini. Usa la voz local.")
+                pcm, sr = g.tts(model, voice_sample(body.voz, idioma), body.voz)
+            finally:
+                g.close()
+    except GeminiError as e:
+        preview_limit.refund(ip)
+        _err(e, 429 if e.kind == "quota" else 400)
+    except Exception:  # noqa: BLE001
+        preview_limit.refund(ip)
+        _err(Exception("No se pudo generar la prueba de voz. Inténtalo de nuevo."), 500)
+    return Response(_wav_bytes(pcm, sr), media_type="audio/wav", headers={"Cache-Control": "no-store"})
 
 
 @router.post("/api/guion")

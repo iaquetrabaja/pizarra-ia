@@ -205,13 +205,15 @@ class Gemini:
                 raise
         return self._call("imagen", go, retries=2)
 
-    def tts(self, model: str, text: str, voice: str, style: str | None) -> tuple[np.ndarray, int]:
+    def tts(self, model: str, text: str, voice: str) -> tuple[np.ndarray, int]:
+        """Sólo se envía el texto a leer: los modelos TTS a veces leen en voz alta las
+        instrucciones de estilo (aunque vayan entre corchetes). El tono lo da la voz."""
         from google.genai import types
 
         def go():
             r = self._client.models.generate_content(
                 model=model,
-                contents=f"{style} {text}" if style else text,
+                contents=text,
                 config=types.GenerateContentConfig(
                     response_modalities=["AUDIO"],
                     speech_config=types.SpeechConfig(

@@ -40,7 +40,7 @@ Todo el dibujo se hace en **CPU** (sin GPU, sin modelos de segmentación): funci
 | ![](examples/fotogramas/ia-dibujando.png) | ![](examples/fotogramas/ia-escena-terminada.png) | ![](examples/fotogramas/offline-tiza.png) | ![](examples/fotogramas/offline-cuaderno-16x9.png) |
 
 Vídeos de ejemplo en [`examples/`](examples/):
-- `demo-ia-explicada-9x16.mp4`: tema «Cómo funciona la inteligencia artificial explicado fácil», 38 s, hecho con una clave real de Gemini (guion, imágenes y voz de Gemini).
+- `demo-ia-explicada-9x16.mp4`: tema «Cómo funciona la inteligencia artificial explicado fácil», 35 s, hecho con una clave real de Gemini (guion, imágenes y voz de Gemini, voz «Charon»).
 - `demo-offline-9x16.mp4`: demo de 20 s creada **sin clave** (`--offline`).
 
 ---
@@ -114,7 +114,7 @@ Los avisos lo indican en la consola o en la web.
 | Imágenes | N (o N de texto en modo vectorial) |
 | Voz | N (más 1 por escena en el raro caso de que haya que repetirla) |
 
-Ejemplo real (38 s, 5 escenas): `modelos 2 · texto 1 · imagen 5 · voz 5` = 13 llamadas.
+Ejemplo real (35 s, 5 escenas): `modelos 2 · texto 1 · imagen 5 · voz 5` = 13 llamadas.
 
 ---
 
@@ -144,7 +144,7 @@ Opciones principales:
 | `--estilo` | `pizarra` (blanca) · `tiza` (verde, trazo blanco) · `cuaderno` (papel rayado) | `pizarra` |
 | `--duracion` | segundos (15–120) | `60` |
 | `--idioma` | `es`, `es-419`, `en`, `pt`, `fr`, `it`, `de` | `es` |
-| `--voz` | voz de Gemini: `Kore`, `Puck`, `Charon`, `Aoede`, `Fenrir`, `Leda`, `Orus`, `Zephyr`… | `Kore` |
+| `--voz` | voz de Gemini (30 voces; en la web se pueden probar antes de generar): `Charon` (informativa), `Puck` (animada), `Kore` (firme), `Sulafat` (cálida), `Achird` (cercana)… | `Charon` |
 | `--tts` | `auto` (Gemini y, si falla, Piper) · `gemini` · `piper` | `auto` |
 | `--imagenes` | `auto` · `ia` (modelo de imagen) · `vector` (gratis) | `auto` |
 | `--investigar` | buscar datos en la web antes de escribir | no |
@@ -261,7 +261,7 @@ Inspirada en `draw_animation.py` de storyboard-ai, pero reescrita para CPU y sin
 |---|---|---|
 | Demo offline 20 s, 9:16 | portátil | ~8 s en total (4–5 s de animación + codificación) |
 | 62 s, 9:16, offline, **limitado a 2 núcleos** | — | ~56–66 s en total (animación + codificación ~30–40 s) |
-| Real con Gemini, 38 s, 9:16, 5 escenas | portátil | ~72 s (guion ~18 s, imágenes ~25 s, voz ~20 s, vídeo ~8 s) |
+| Real con Gemini, 35 s, 9:16, 5 escenas | portátil | ~70 s (guion ~18 s, imágenes ~25 s, voz ~18 s, vídeo ~6 s) |
 
 Memoria pico con 2 núcleos (vídeo de 62 s): ~490 MB el proceso Python (incluye cargar Piper) y ~330 MB ffmpeg.
 

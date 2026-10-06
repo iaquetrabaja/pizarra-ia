@@ -47,14 +47,15 @@ class Job:
 
 
 class RateLimiter:
-    def __init__(self, per_day: int):
-        self.per_day = per_day
+    def __init__(self, per_day: int, window: float = 86400):
+        self.per_day = per_day   # máximo de usos por ventana (por defecto, un día)
+        self.window = window
         self.hits: dict[str, deque] = {}
         self.lock = threading.Lock()
 
     def _clean(self, ip: str) -> deque:
         q = self.hits.setdefault(ip, deque())
-        cutoff = time.time() - 86400
+        cutoff = time.time() - self.window
         while q and q[0] < cutoff:
             q.popleft()
         return q

@@ -48,14 +48,64 @@ PIPER_VOICES = {
     "de": "de_DE-thorsten-medium",
 }
 
-# Voces precompiladas de Gemini TTS (multilingües).
-GEMINI_VOICES = [
-    "Kore", "Puck", "Charon", "Aoede", "Fenrir", "Leda", "Orus", "Zephyr",
-    "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba",
-    "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar",
-    "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
-    "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
-]
+# Voces precompiladas de Gemini TTS (multilingües) con su carácter según Google
+# (https://ai.google.dev/gemini-api/docs/speech-generation#voices), traducido.
+GEMINI_VOICE_INFO = {
+    "Zephyr": "brillante",
+    "Puck": "animada",
+    "Charon": "informativa",
+    "Kore": "firme",
+    "Fenrir": "enérgica",
+    "Leda": "juvenil",
+    "Orus": "firme",
+    "Aoede": "desenfadada",
+    "Callirrhoe": "tranquila",
+    "Autonoe": "brillante",
+    "Enceladus": "suave, aspirada",
+    "Iapetus": "clara",
+    "Umbriel": "tranquila",
+    "Algieba": "suave",
+    "Despina": "suave",
+    "Erinome": "clara",
+    "Algenib": "grave, rasgada",
+    "Rasalgethi": "informativa",
+    "Laomedeia": "animada",
+    "Achernar": "suave",
+    "Alnilam": "firme",
+    "Schedar": "equilibrada",
+    "Gacrux": "madura",
+    "Pulcherrima": "directa",
+    "Achird": "cercana",
+    "Zubenelgenubi": "informal",
+    "Vindemiatrix": "amable",
+    "Sadachbia": "viva",
+    "Sadaltager": "experta",
+    "Sulafat": "cálida",
+}
+GEMINI_VOICES = list(GEMINI_VOICE_INFO)
+DEFAULT_VOICE = "Charon"
+
+# Frase corta para probar una voz antes de generar el vídeo.
+VOICE_SAMPLE = {
+    "es": "Hola, soy la voz {nombre}. Así sonará la narración de tu vídeo.",
+    "es-419": "Hola, soy la voz {nombre}. Así sonará la narración de tu video.",
+    "en": "Hi, I'm the voice {nombre}. This is how your video's narration will sound.",
+    "pt": "Olá, eu sou a voz {nombre}. É assim que vai soar a narração do seu vídeo.",
+    "fr": "Bonjour, je suis la voix {nombre}. Voici comment sonnera la narration de ta vidéo.",
+    "it": "Ciao, sono la voce {nombre}. Così suonerà la narrazione del tuo video.",
+    "de": "Hallo, ich bin die Stimme {nombre}. So wird die Erzählung deines Videos klingen.",
+}
+
+
+def voice_sample(nombre: str, idioma: str = "es") -> str:
+    return VOICE_SAMPLE.get(idioma, VOICE_SAMPLE["es"]).format(nombre=nombre)
+
+
+def voice_label(voz: str) -> str:
+    """'Charon — informativa' (para los desplegables)."""
+    info = GEMINI_VOICE_INFO.get(voz)
+    return f"{voz} — {info}" if info else voz
+
 
 MAX_SECONDS_DEFAULT = 120
 
@@ -67,7 +117,7 @@ class RenderOptions:
     idioma: str = "es"
     fps: int = 24
     tts: str = "auto"            # auto | gemini | piper
-    voz: str = "Kore"            # voz Gemini
+    voz: str = DEFAULT_VOICE      # voz Gemini
     velocidad: float = 1.0       # >1 más rápido (sólo Piper)
     imagenes: str = "auto"       # auto | ia | vector
     color: bool = True           # relleno de color al final de cada escena

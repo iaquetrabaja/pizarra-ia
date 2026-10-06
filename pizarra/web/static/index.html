@@ -40,7 +40,7 @@
     <label class="field">Tema del vídeo
       <textarea id="tema" rows="2" maxlength="500" placeholder="Ej.: Cómo funciona la inteligencia artificial, explicado fácil"></textarea>
     </label>
-    <div class="grid">
+    <div class="grid two">
       <label class="field">Duración
         <select id="duracion">
           <option value="30">30 s</option><option value="45">45 s</option>
@@ -48,7 +48,22 @@
         </select>
       </label>
       <label class="field">Idioma <select id="idioma"></select></label>
-      <label class="field">Voz <select id="voz"></select></label>
+    </div>
+
+    <div class="field voice">
+      <label for="voz">Voz (puedes elegirla)</label>
+      <div class="row">
+        <select id="voz" aria-describedby="voz-hint"></select>
+        <button id="btn-probar" type="button" class="secondary">Probar voz</button>
+      </div>
+      <p class="hint" id="voz-hint">Elige la voz que más te guste y pruébala antes de generar.</p>
+      <div class="seg" role="radiogroup" aria-label="Motor de voz">
+        <label><input type="radio" name="tts" value="auto" checked><span>Gemini (si falla, local)</span></label>
+        <label><input type="radio" name="tts" value="gemini"><span>Sólo Gemini</span></label>
+        <label><input type="radio" name="tts" value="piper"><span>Local Piper (sin clave)</span></label>
+      </div>
+      <audio id="audio-voz" controls preload="none" class="hidden"></audio>
+      <p class="status" id="voz-estado" role="status"></p>
     </div>
 
     <div class="field">Formato
@@ -79,13 +94,6 @@
             <option value="auto">Automático</option>
             <option value="ia">Modelo de imagen</option>
             <option value="vector">Vectorial (gratis, más simple)</option>
-          </select>
-        </label>
-        <label class="field">Voz
-          <select id="tts">
-            <option value="auto">Automático (Gemini; si falla, local)</option>
-            <option value="gemini">Gemini</option>
-            <option value="piper">Local (Piper)</option>
           </select>
         </label>
       </div>

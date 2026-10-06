@@ -21,7 +21,7 @@ from .images import image_prompt, placeholder_image, vector_image
 from .script import estimate_seconds, generate_plan, normalize_plan
 from .style import build_layers, make_board
 from .subtitles import SubtitleRenderer, cues_for_spans, to_srt
-from .tts import Speech, speech_from_pcm, synth_piper, write_wav
+from .tts import Speech, gemini_speech, synth_piper, write_wav
 from .video import FFmpegWriter
 
 log = logging.getLogger("pizarra")
@@ -89,34 +89,6 @@ def make_plan(tema: str, opts: RenderOptions, api_key: str | None = None, duraci
 # ----------------------------------------------------------------------------
 # Paso 2: render
 # ----------------------------------------------------------------------------
-_TTS_ACCENTS = {
-    "es": "Castilian Spanish accent from Spain",
-    "es-419": "neutral Latin American Spanish accent",
-    "en": "natural American English", "pt": "Brazilian Portuguese", "fr": "French",
-    "it": "Italian", "de": "German",
-}
-
-
-def _tts_style(idioma: str) -> str:
-    # Etiqueta entre corchetes: el modelo la usa como dirección y NO la lee en voz alta
-    # (una instrucción en frase normal, tipo "Lee con voz…:", sí la leía y duplicaba la duración).
-    acc = _TTS_ACCENTS.get(idioma, idioma)
-    return f"[{acc}, clear, warm and energetic explainer tone, natural pace]"
-
-
-def _gemini_scene_tts(gem: Gemini, model: str, text: str, voice: str, idioma: str) -> Speech:
-    pcm, sr = gem.tts(model, text, voice, _tts_style(idioma))
-    sp = speech_from_pcm(text, pcm, sr, "gemini")
-    expected = len(text) / 13.0
-    spoken = sp.duration - 0.7
-    if spoken > max(4.0, 1.8 * expected):
-        # parece que ha leído la etiqueta de estilo o se ha ido por las ramas: sin estilo
-        log.warning("Audio sospechosamente largo (%.1fs, esperado ~%.1fs); repito sin etiqueta.", spoken, expected)
-        pcm, sr = gem.tts(model, text, voice, None)
-        sp = speech_from_pcm(text, pcm, sr, "gemini")
-    return sp
-
-
 def render_video(plan: dict, opts: RenderOptions, out_dir: str | Path, api_key: str | None = None,
                  offline: bool = False, progress: Progress = _noop,
                  cancel: Callable[[], bool] = lambda: False) -> RenderResult:
@@ -220,7 +192,7 @@ def render_video(plan: dict, opts: RenderOptions, out_dir: str | Path, api_key: 
                 for i, sc in enumerate(scenes):
                     check()
                     progress("voz", 0.36 + 0.14 * i / n, f"Voz {i + 1}/{n} (Gemini)")
-                    speeches.append(_gemini_scene_tts(gem, models["tts"], sc["narracion"], opts.voz, opts.idioma))
+                    speeches.append(gemini_speech(gem, models["tts"], sc["narracion"], opts.voz))
                 engines["voz"] = f"gemini:{models['tts']} ({opts.voz})"
             except GeminiError as e:
                 warnings.append(f"{e} Uso la voz local Piper para todo el vídeo.")

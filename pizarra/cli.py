@@ -17,7 +17,7 @@ import sys
 import time
 from pathlib import Path
 
-from .config import GEMINI_VOICES, LANGUAGES, MAX_SECONDS_DEFAULT, STYLES, RenderOptions
+from .config import DEFAULT_VOICE, GEMINI_VOICES, LANGUAGES, MAX_SECONDS_DEFAULT, STYLES, RenderOptions
 
 
 def _slug(s: str) -> str:
@@ -40,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--guion", help="Renderizar un guion JSON ya escrito/editado")
     p.add_argument("--offline", action="store_true", help="Demo sin clave: guion, dibujos y voz locales")
     p.add_argument("--salida", default=None, help="Carpeta de salida")
-    p.add_argument("--voz", default="Kore", help=f"Voz Gemini ({', '.join(GEMINI_VOICES[:8])}…)")
+    p.add_argument("--voz", default=DEFAULT_VOICE, help=f"Voz Gemini ({', '.join(GEMINI_VOICES[:8])}…)")
     p.add_argument("--tts", default="auto", choices=["auto", "gemini", "piper"])
     p.add_argument("--velocidad", type=float, default=1.0, help="Velocidad de la voz Piper")
     p.add_argument("--imagenes", default="auto", choices=["auto", "ia", "vector"],

@@ -1,55 +1,63 @@
 1
-00:00:00,250 --> 00:00:03,280
+00:00:00,250 --> 00:00:03,070
 ¿Crees que la inteligencia artificial piensa como tú?
 
 2
-00:00:03,280 --> 00:00:06,350
-En realidad, no tiene ni una sola idea propia.
+00:00:03,070 --> 00:00:04,586
+En realidad, no tiene
 
 3
-00:00:07,050 --> 00:00:10,180
-Funciona más bien como un imitador superdotado.
+00:00:04,586 --> 00:00:05,990
+ni idea de lo que hace.
 
 4
-00:00:10,180 --> 00:00:12,193
-Le enseñas millones de fotos de
+00:00:06,690 --> 00:00:09,020
+Imagina enseñarle a un niño mil fotos de
 
 5
-00:00:12,193 --> 00:00:14,390
-gatos y busca qué tienen en común.
+00:00:09,020 --> 00:00:11,240
+gatos para que aprenda a reconocerlos.
 
 6
-00:00:15,090 --> 00:00:16,920
-No sabe qué es un animal.
+00:00:11,240 --> 00:00:13,030
+Con la máquina hacemos lo mismo.
 
 7
-00:00:16,920 --> 00:00:19,558
-Solo calcula qué píxeles suelen ir juntos
+00:00:13,730 --> 00:00:16,670
+El sistema no memoriza, busca patrones:
 
 8
-00:00:19,558 --> 00:00:21,890
-usando pura probabilidad matemática.
+00:00:16,670 --> 00:00:18,472
+la forma de las orejas,
 
 9
-00:00:22,590 --> 00:00:24,483
-Cuando le haces una pregunta,
+00:00:18,472 --> 00:00:20,710
+los bigotes o la textura del pelo.
 
 10
-00:00:24,483 --> 00:00:26,538
-predice cuál es la siguiente palabra
+00:00:21,410 --> 00:00:22,186
+Al final,
 
 11
-00:00:26,538 --> 00:00:28,810
-más lógica según todo lo que leyó antes.
+00:00:22,186 --> 00:00:24,100
+calcula probabilidades matemáticas.
 
 12
-00:00:29,510 --> 00:00:32,310
-No hay mentes mágicas ni magia detrás:
+00:00:24,100 --> 00:00:25,532
+Ante una imagen nueva,
 
 13
-00:00:32,310 --> 00:00:34,770
-la inteligencia artificial es solo una
+00:00:25,532 --> 00:00:27,630
+predice si encaja con lo que ya conoce.
 
 14
-00:00:34,770 --> 00:00:37,230
-calculadora gigante buscando patrones.
+00:00:28,330 --> 00:00:31,080
+La IA no es magia ni tiene conciencia.
+
+15
+00:00:31,080 --> 00:00:33,235
+Es pura estadística reconociendo
+
+16
+00:00:33,235 --> 00:00:35,010
+patrones a toda velocidad.

@@ -13,11 +13,15 @@ import threading
 import wave
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from .config import CACHE_DIR, PIPER_VOICES
 from .subtitles import split_sentences
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .gemini import Gemini
 
 log = logging.getLogger("pizarra")
 
@@ -195,3 +199,44 @@ def speech_from_pcm(text: str, pcm: np.ndarray, sr: int, engine: str) -> Speech:
     spans = estimate_spans(split_sentences(text), audio, sr, LEAD_IN)
     full = np.concatenate([silence(LEAD_IN, sr), audio, silence(TAIL, sr)])
     return Speech(full, sr, spans, engine)
+
+
+# --------------------------------------------------------------------------
+# Gemini: comprobación de duración
+# --------------------------------------------------------------------------
+# Segundos de habla esperables por carácter (voces de Gemini en español: ~14-16 caracteres/s).
+CHARS_PER_SEC = 14.0
+MAX_RATIO = 1.45   # si el audio dura más que esto x lo esperado, ha leído algo que no es el guion
+
+
+def too_long(seconds: float, text: str) -> bool:
+    expected = max(1.5, len(text) / CHARS_PER_SEC)
+    return seconds > expected * MAX_RATIO + 1.0
+
+
+def gemini_speech(gem: "Gemini", model: str, text: str, voice: str) -> Speech:
+    """Narración de una escena con Gemini (sólo el texto, sin instrucciones de estilo).
+
+    Si el audio sale mucho más largo de lo esperable (ha leído algo que no es el guion
+    o se ha ido por las ramas) se repite; si vuelve a pasar, se sintetiza frase a frase."""
+    pcm = sr = None
+    for intento in range(2):
+        pcm, sr = gem.tts(model, text, voice)
+        audio = trim_silence(pcm, sr)
+        if not too_long(len(audio) / sr, text):
+            return speech_from_pcm(text, pcm, sr, "gemini")
+        log.warning("Voz sospechosamente larga (%.1fs para %d caracteres); %s.", len(audio) / sr, len(text),
+                    "repito" if intento == 0 else "voy frase a frase")
+    sents = split_sentences(text)
+    if len(sents) <= 1:
+        return speech_from_pcm(text, pcm, sr, "gemini")
+    parts = []
+    for s in sents:
+        best = None
+        for _ in range(2):
+            p, sr = gem.tts(model, s, voice)
+            best = trim_silence(p, sr, keep=0.03)
+            if not too_long(len(best) / sr, s):
+                break
+        parts += [best, silence(SENT_GAP + 0.1, sr)]
+    return speech_from_pcm(text, np.concatenate(parts[:-1]), sr, "gemini")

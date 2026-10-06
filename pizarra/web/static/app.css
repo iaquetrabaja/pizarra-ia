@@ -48,6 +48,12 @@ h2 .n { display: inline-grid; place-items: center; width: 28px; height: 28px; bo
 .row { display: flex; gap: 8px; }
 .row input { flex: 1; min-width: 0; }
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.grid.two { grid-template-columns: repeat(2, 1fr); }
+.voice > label { display: block; margin-bottom: 6px; }
+.voice .row select { flex: 1; min-width: 0; }
+.voice .seg { margin-top: 12px; flex-wrap: wrap; }
+.voice .hint { font-weight: 400; }
+.voice audio { display: block; width: 100%; margin-top: 12px; }
 @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 26px; } }
 
 .field { display: block; font-size: 14px; font-weight: 500; margin: 0 0 14px; }

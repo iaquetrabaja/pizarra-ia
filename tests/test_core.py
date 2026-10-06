@@ -234,7 +234,7 @@ class FakeGemini:
         return json.dumps({"shapes": [{"type": "circle", "center": [500, 500], "r": 200, "fill": "#F6C744"},
                                       {"type": "text", "pos": [500, 800], "text": "HOLA", "size": 80}]})
 
-    def tts(self, model, text, voice, style):
+    def tts(self, model, text, voice):
         self.calls["voz"] += 1
         raise GeminiError("Gemini (voz): has superado la cuota.", "quota")
 
@@ -254,3 +254,49 @@ def test_fallbacks_without_quota(tmp_path, monkeypatch):
     assert res.api_calls["imagen"] == 1          # tras el primer 429 no se insiste
     assert res.api_calls["texto"] == 3           # un dibujo vectorial por escena
     assert any("cuota" in w for w in res.warnings)
+
+
+# ---------------------------------------------------------------------------
+# Voz de Gemini: sin instrucciones de estilo y con control de duración
+# ---------------------------------------------------------------------------
+def _tone(seconds, sr=24000):
+    t = np.arange(int(seconds * sr)) / sr
+    return (np.sin(2 * np.pi * 200 * t) * 9000).astype(np.int16)
+
+
+class _SeqTTS:
+    """Gemini falso: devuelve audios de las duraciones indicadas, en orden."""
+
+    def __init__(self, durations):
+        self.durations = list(durations)
+        self.texts = []
+
+    def tts(self, model, text, voice):
+        self.texts.append(text)
+        d = self.durations.pop(0) if self.durations else len(text) / 14
+        return _tone(d), 24000
+
+
+def test_too_long():
+    from pizarra.tts import too_long
+    text = "a" * 140   # ~10 s esperados
+    assert not too_long(10, text) and not too_long(15, text)
+    assert too_long(25, text)
+
+
+def test_gemini_speech_sends_only_text_and_retries():
+    from pizarra.tts import gemini_speech
+    text = "Esto es una frase normal de prueba. Y aquí va otra frase."   # ~4 s
+    g = _SeqTTS([20, 4])
+    sp = gemini_speech(g, "m", text, "Charon")
+    assert g.texts == [text, text]                     # nada de estilo, sólo la narración
+    assert sp.engine == "gemini" and sp.duration < 6
+
+
+def test_gemini_speech_falls_back_to_sentences():
+    from pizarra.tts import gemini_speech
+    text = "Esto es una frase normal de prueba. Y aquí va otra frase."
+    g = _SeqTTS([20, 20, 2, 2])
+    sp = gemini_speech(g, "m", text, "Charon")
+    assert len(g.texts) == 4 and g.texts[2:] == ["Esto es una frase normal de prueba.", "Y aquí va otra frase."]
+    assert sp.duration < 7 and len(sp.spans) == 2
