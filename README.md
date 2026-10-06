@@ -2,6 +2,15 @@
 
 **Vídeos de pizarra (whiteboard) dibujados a mano, con tu propia clave de Gemini.**
 
+<table>
+<tr>
+<td align="center"><a href="examples/demo-ia-explicada-9x16.mp4"><img src="examples/demo-ia-explicada-9x16.gif" width="260" alt="Ejemplo: cómo funciona la IA"></a><br><sub><b>Con Gemini</b> · «Cómo funciona la IA explicado fácil»<br><a href="examples/demo-ia-explicada-9x16.mp4">ver vídeo con sonido</a></sub></td>
+<td align="center"><a href="examples/demo-offline-9x16.mp4"><img src="examples/demo-offline-9x16.gif" width="260" alt="Ejemplo sin clave"></a><br><sub><b>Modo sin clave</b> (demo offline)<br><a href="examples/demo-offline-9x16.mp4">ver vídeo con sonido</a></sub></td>
+</tr>
+</table>
+
+Pruébalo online gratis en **[tools.iaquetrabaja.com/pizarra](https://tools.iaquetrabaja.com/pizarra/)** (cuenta gratuita).
+
 Escribes un tema y Pizarra IA:
 
 1. escribe el guion y lo divide en escenas (opcionalmente investigando en la web),
