@@ -240,12 +240,21 @@
   // «Mira un vídeo de ejemplo»: si la página tiene un vídeo de ejemplo (#ejemplo), baja hasta él y lo reproduce;
   // si no, el enlace lleva a los ejemplos del README en GitHub.
   $("#ver-ejemplo").addEventListener("click", (e) => {
-    const ej = document.getElementById("ejemplo");
-    if (!ej) return;
     e.preventDefault();
-    ej.scrollIntoView({ behavior: "smooth", block: "center" });
-    const v = ej.querySelector("video");
-    if (v) { v.play().catch(() => {}); }
+    const fallback = e.currentTarget.dataset.github;
+    let tries = 0;
+    (function go() {
+      const ej = document.getElementById("ejemplo");
+      if (ej) {
+        ej.scrollIntoView({ behavior: "smooth", block: "start" });
+        const v = ej.querySelector("video");
+        if (v) { v.play().catch(() => {}); }
+      } else if (++tries < 15) {
+        setTimeout(go, 200);          // el bloque de ejemplo puede tardar un instante en aparecer
+      } else {
+        window.open(fallback, "_blank", "noopener");
+      }
+    })();
   });
 
   function resumeJob(id) {
