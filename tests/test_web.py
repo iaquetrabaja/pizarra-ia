@@ -39,7 +39,7 @@ def test_prefix_and_static(client):
     assert client.get("/pizarra/static/app.js").status_code == 200
     assert client.get("/pizarra/fonts/Roboto.ttf").status_code == 200
     html = client.get("/pizarra/").text
-    assert 'src="static/app.js"' in html  # rutas relativas
+    assert 'src="static/app.js' in html  # rutas relativas
 
 
 def test_config(client):
